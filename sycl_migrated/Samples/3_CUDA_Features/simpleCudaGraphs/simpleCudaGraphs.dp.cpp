@@ -253,8 +253,7 @@ void syclGraphManual(float *inputVec_h, float *inputVec_d,
   double result_h = 0.0;
   sycl::queue q = sycl::queue{sycl::gpu_selector_v}; //use default sycl queue, which is out of order
   sycl_ext::command_graph graph(q.get_context(), q.get_device());
-
-  
+    
   auto nodecpy = graph.add([&](sycl::handler& h){
       h.memcpy(inputVec_d, inputVec_h, sizeof(float) * inputSize);
   }); 
@@ -303,6 +302,8 @@ void syclGraphManual(float *inputVec_h, float *inputVec_d,
   
   sycl::queue qexec = sycl::queue{sycl::gpu_selector_v, 
       {sycl::ext::intel::property::queue::no_immediate_command_list()}};
+  printf("sycl graph support level: %d \n",
+      qexec.get_device().get_info<sycl::ext::oneapi::experimental::info::device::graph_support>());
   for (int i = 0; i < GRAPH_LAUNCH_ITERATIONS; i++) {
     qexec.submit([&](sycl::handler& cgh) {
       cgh.ext_oneapi_graph(exec_graph);
@@ -368,6 +369,8 @@ void syclGraphCaptureQueue(float *inputVec_h, float *inputVec_d,
   
   sycl::queue qexec = sycl::queue{sycl::gpu_selector_v, 
       {sycl::ext::intel::property::queue::no_immediate_command_list()}};
+  printf("sycl graph support level: %d \n",
+      qexec.get_device().get_info<sycl::ext::oneapi::experimental::info::device::graph_support>());
   for (int i = 0; i < GRAPH_LAUNCH_ITERATIONS; i++) {
     qexec.submit([&](sycl::handler& cgh) {
       cgh.ext_oneapi_graph(exec_graph);
@@ -382,8 +385,6 @@ int main(int argc, char **argv) {
   size_t maxBlocks = 512;
 
   sycl::device dev = dpct::get_default_queue().get_device();
-  printf("sycl graph support level: %d \n",dev.get_info<sycl::ext::oneapi::experimental::info::device::graph_support>());
-  
 
   printf("%zu elements\n", size);
   printf("threads per block  = %d\n", THREADS_PER_BLOCK);
