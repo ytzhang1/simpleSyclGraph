@@ -245,163 +245,6 @@ void myHostNodeCallback(void *data) {
   *result = 0.0;  // reset the result
 }
 
-void testrun(float *inputVec_h, float *inputVec_d,
-                                  double *outputVec_d, double *result_d,
-                                  size_t inputSize, size_t numOfBlocks) {
-/* DPCT_ORIG   cudaStream_t stream1, stream2, stream3, streamForGraph;*/
-  dpct::queue_ptr stream1, stream2, stream3;
-/* DPCT_ORIG   cudaEvent_t forkStreamEvent, memsetEvent1, memsetEvent2;*/
-  dpct::event_ptr forkStreamEvent, memsetEvent1, memsetEvent2;
-
- 
-  double result_h = 0.0;
-
-/* DPCT_ORIG   checkCudaErrors(cudaStreamCreate(&stream1));*/
-  stream1 = dpct::get_current_device().create_queue();
-/* DPCT_ORIG   checkCudaErrors(cudaStreamCreate(&stream2));*/
-  stream2 = dpct::get_current_device().create_queue();
-/* DPCT_ORIG   checkCudaErrors(cudaStreamCreate(&stream3));*/
-  stream3 = dpct::get_current_device().create_queue();
-
-/* DPCT_ORIG   checkCudaErrors(cudaEventCreate(&forkStreamEvent));*/
-  forkStreamEvent = new sycl::event();
-/* DPCT_ORIG   checkCudaErrors(cudaEventCreate(&memsetEvent1));*/
-  memsetEvent1 = new sycl::event();
-/* DPCT_ORIG   checkCudaErrors(cudaEventCreate(&memsetEvent2));*/
-  memsetEvent2 = new sycl::event();
-
-/* DPCT_ORIG   checkCudaErrors(cudaStreamBeginCapture(stream1,
- * cudaStreamCaptureModeGlobal));*/
-  /*
-  DPCT1027:42: The call to cudaStreamBeginCapture was replaced with 0 because
-  SYCL currently does not support capture operations on queues.
-  */
-
-/* DPCT_ORIG   checkCudaErrors(cudaEventRecord(forkStreamEvent, stream1));*/
-  /*
-  DPCT1012:43: Detected kernel execution time measurement pattern and generated
-  an initial code for time measurements in SYCL. You can change the way time is
-  measured depending on your goals.
-  */
-  /*
-  DPCT1024:44: The original code returned the error code that was further
-  consumed by the program logic. This original code was replaced with 0. You may
-  need to rewrite the program logic consuming the error code.
-  */
-  *forkStreamEvent = stream1->ext_oneapi_submit_barrier();
-/* DPCT_ORIG   checkCudaErrors(cudaStreamWaitEvent(stream2, forkStreamEvent,
- * 0));*/
-  stream2->ext_oneapi_submit_barrier({*forkStreamEvent});
-/* DPCT_ORIG   checkCudaErrors(cudaStreamWaitEvent(stream3, forkStreamEvent,
- * 0));*/
-  stream3->ext_oneapi_submit_barrier({*forkStreamEvent});
-
-/* DPCT_ORIG   checkCudaErrors(cudaMemcpyAsync(inputVec_d, inputVec_h,*/
-  stream1->memcpy(inputVec_d, inputVec_h,
-                                       /* DPCT_ORIG sizeof(float) * inputSize,
-                                          cudaMemcpyDefault, stream1));*/
-                                       sizeof(float) * inputSize);
-
-
-      /* DPCT_ORIG       cudaMemsetAsync(outputVec_d, 0, sizeof(double) *
-         numOfBlocks, stream2));*/
-   stream2->memset(outputVec_d, 0, sizeof(double) * numOfBlocks);
-
-/* DPCT_ORIG   checkCudaErrors(cudaEventRecord(memsetEvent1, stream2));*/
-  /*
-  DPCT1012:45: Detected kernel execution time measurement pattern and generated
-  an initial code for time measurements in SYCL. You can change the way time is
-  measured depending on your goals.
-  */
-  /*
-  DPCT1024:46: The original code returned the error code that was further
-  consumed by the program logic. This original code was replaced with 0. You may
-  need to rewrite the program logic consuming the error code.
-  */
-  *memsetEvent1 = stream2->ext_oneapi_submit_barrier();
-
-/* DPCT_ORIG   checkCudaErrors(cudaMemsetAsync(result_d, 0, sizeof(double),
- * stream3));*/
-  stream3->memset(result_d, 0, sizeof(double));
-/* DPCT_ORIG   checkCudaErrors(cudaEventRecord(memsetEvent2, stream3));*/
-  /*
-  DPCT1012:47: Detected kernel execution time measurement pattern and generated
-  an initial code for time measurements in SYCL. You can change the way time is
-  measured depending on your goals.
-  */
-  /*
-  DPCT1024:48: The original code returned the error code that was further
-  consumed by the program logic. This original code was replaced with 0. You may
-  need to rewrite the program logic consuming the error code.
-  */
-  *memsetEvent2 = stream3->ext_oneapi_submit_barrier();
-
-/* DPCT_ORIG   checkCudaErrors(cudaStreamWaitEvent(stream1, memsetEvent1, 0));*/
-  stream1->ext_oneapi_submit_barrier({*memsetEvent1});
-
-/* DPCT_ORIG   reduce<<<numOfBlocks, THREADS_PER_BLOCK, 0, stream1>>>(
-      inputVec_d, outputVec_d, inputSize, numOfBlocks);*/
-  /*
-  DPCT1049:7: The work-group size passed to the SYCL kernel may exceed the
-  limit. To get the device limit, query info::device::max_work_group_size.
-  Adjust the work-group size if needed.
-  */
-  {
-    dpct::has_capability_or_fail(stream1->get_device(), {sycl::aspect::fp64});
-    stream1->submit([&](sycl::handler &cgh) {
-      sycl::local_accessor<double, 1> tmp_acc_ct1(
-          sycl::range<1>(THREADS_PER_BLOCK), cgh);
-
-      cgh.parallel_for(
-          sycl::nd_range<3>(sycl::range<3>(1, 1, numOfBlocks) *
-                                sycl::range<3>(1, 1, THREADS_PER_BLOCK),
-                            sycl::range<3>(1, 1, THREADS_PER_BLOCK)),
-          [=](sycl::nd_item<3> item_ct1) [[intel::reqd_sub_group_size(32)]] {
-            reduce(inputVec_d, outputVec_d, inputSize, numOfBlocks, item_ct1,
-                   tmp_acc_ct1.get_pointer());
-          });
-    });
-  }
-
-/* DPCT_ORIG   checkCudaErrors(cudaStreamWaitEvent(stream1, memsetEvent2, 0));*/
-  stream1->ext_oneapi_submit_barrier({*memsetEvent2});
-
-/* DPCT_ORIG   reduceFinal<<<1, THREADS_PER_BLOCK, 0, stream1>>>(outputVec_d,
-   result_d, numOfBlocks);*/
-  /*
-  DPCT1049:8: The work-group size passed to the SYCL kernel may exceed the
-  limit. To get the device limit, query info::device::max_work_group_size.
-  Adjust the work-group size if needed.
-  */
-  {
-    dpct::has_capability_or_fail(stream1->get_device(), {sycl::aspect::fp64});
-    stream1->submit([&](sycl::handler &cgh) {
-      sycl::local_accessor<double, 1> tmp_acc_ct1(
-          sycl::range<1>(THREADS_PER_BLOCK), cgh);
-
-      cgh.parallel_for(
-          sycl::nd_range<3>(sycl::range<3>(1, 1, THREADS_PER_BLOCK),
-                            sycl::range<3>(1, 1, THREADS_PER_BLOCK)),
-          [=](sycl::nd_item<3> item_ct1) [[intel::reqd_sub_group_size(32)]] {
-            reduceFinal(outputVec_d, result_d, numOfBlocks, item_ct1,
-                        tmp_acc_ct1.get_pointer());
-          });
-    });
-  }
-/* DPCT_ORIG   checkCudaErrors(cudaMemcpyAsync(&result_h, result_d,
-   sizeof(double), cudaMemcpyDefault, stream1));*/
-  stream1->memcpy(&result_h, result_d, sizeof(double));
-  printf("Final reduced sum = %lf\n", result_h);
-  
- 
-/* DPCT_ORIG   checkCudaErrors(cudaStreamDestroy(stream1));*/
-  dpct::get_current_device().destroy_queue(stream1);
-/* DPCT_ORIG   checkCudaErrors(cudaStreamDestroy(stream2));*/
-  dpct::get_current_device().destroy_queue(stream2);
-/* DPCT_ORIG   checkCudaErrors(cudaStreamDestroy(stream3));*/
-  dpct::get_current_device().destroy_queue(stream3);
-}
-
 void syclGraphManual(float *inputVec_h, float *inputVec_d,
                                   double *outputVec_d, double *result_d,
                                   size_t inputSize, size_t numOfBlocks) {
@@ -410,6 +253,7 @@ void syclGraphManual(float *inputVec_h, float *inputVec_d,
   double result_h = 0.0;
   sycl::queue q = sycl::queue{sycl::gpu_selector_v}; //use default sycl queue, which is out of order
   sycl_ext::command_graph graph(q.get_context(), q.get_device());
+
   
   auto nodecpy = graph.add([&](sycl::handler& h){
       h.memcpy(inputVec_d, inputVec_h, sizeof(float) * inputSize);
@@ -423,8 +267,8 @@ void syclGraphManual(float *inputVec_h, float *inputVec_d,
   auto nodememset2 = graph.add([&](sycl::handler& h){
       //h.memset(result_d, 0, sizeof(double));
       h.fill(result_d, 0, 1);
-  }); 
-  
+  });
+
   auto nodek1 = graph.add([&](sycl::handler &cgh) {
     sycl::local_accessor<double, 1> tmp_acc_ct1(
       sycl::range<1>(THREADS_PER_BLOCK), cgh);
@@ -438,7 +282,7 @@ void syclGraphManual(float *inputVec_h, float *inputVec_d,
                tmp_acc_ct1.get_pointer());
       });
   },  sycl_ext::property::node::depends_on(nodecpy, nodememset1));
-  
+   
   
   auto nodek2 = graph.add([&](sycl::handler &cgh) {
     sycl::local_accessor<double, 1> tmp_acc_ct1(
@@ -452,16 +296,17 @@ void syclGraphManual(float *inputVec_h, float *inputVec_d,
                     tmp_acc_ct1.get_pointer());
       });
   }, sycl_ext::property::node::depends_on(nodek1, nodememset2));
-  
   auto nodecpy1 = graph.add([&](sycl::handler &cgh) {
       cgh.memcpy(&result_h, result_d, sizeof(double));  
   }, sycl_ext::property::node::depends_on(nodek2));
-  
   auto exec_graph = graph.finalize();
   
   sycl::queue qexec = sycl::queue{sycl::gpu_selector_v, 
       {sycl::ext::intel::property::queue::no_immediate_command_list()}};
-  dpct::has_capability_or_fail(qexec.get_device(), {sycl::aspect::fp64});
+  if (!qexec.get_device().has(sycl::aspect::fp64)) {
+      printf("Device for execution queue doesn't support double precision. Exit. \n");
+      exit(0);
+  }
   for (int i = 0; i < GRAPH_LAUNCH_ITERATIONS; i++) {
     qexec.submit([&](sycl::handler& cgh) {
       cgh.ext_oneapi_graph(exec_graph);
@@ -479,7 +324,7 @@ void syclGraphCaptureQueue(float *inputVec_h, float *inputVec_d,
   double result_h = 0.0;
   sycl::queue q = sycl::queue{sycl::gpu_selector_v}; //use default sycl queue, which is out of order
   sycl_ext::command_graph graph(q.get_context(), q.get_device());
-  
+
   graph.begin_recording(q);
   
   sycl::event ememcpy = q.memcpy(inputVec_d, inputVec_h, sizeof(float) * inputSize);
@@ -502,7 +347,6 @@ void syclGraphCaptureQueue(float *inputVec_h, float *inputVec_d,
                tmp_acc_ct1.get_pointer());
       });
   });
-  
   
   sycl::event ek2 = q.submit([&](sycl::handler &cgh) {
     cgh.depends_on({ek1, ememset1});
@@ -528,7 +372,10 @@ void syclGraphCaptureQueue(float *inputVec_h, float *inputVec_d,
   
   sycl::queue qexec = sycl::queue{sycl::gpu_selector_v, 
       {sycl::ext::intel::property::queue::no_immediate_command_list()}};
-  dpct::has_capability_or_fail(qexec.get_device(), {sycl::aspect::fp64});
+  if (!qexec.get_device().has(sycl::aspect::fp64)) {
+      printf("Device for execution queue doesn't support double precision. Exit. \n");
+      exit(0);
+  }
   for (int i = 0; i < GRAPH_LAUNCH_ITERATIONS; i++) {
     qexec.submit([&](sycl::handler& cgh) {
       cgh.ext_oneapi_graph(exec_graph);
@@ -544,6 +391,7 @@ int main(int argc, char **argv) {
 
   sycl::device dev = dpct::get_default_queue().get_device();
   printf("sycl graph support level: %d \n",dev.get_info<sycl::ext::oneapi::experimental::info::device::graph_support>());
+  
 
   printf("%zu elements\n", size);
   printf("threads per block  = %d\n", THREADS_PER_BLOCK);
@@ -570,8 +418,6 @@ int main(int argc, char **argv) {
       tmp += inputVec_h[i];
   printf("CPU sum = %lf\n", tmp);
   
-  printf("Test run on single queue on GPU ... \n");
-  testrun(inputVec_h, inputVec_d, outputVec_d, result_d, size, maxBlocks);
   printf("Using manually constructed SYCL graph ... \n");
   syclGraphManual(inputVec_h, inputVec_d, outputVec_d, result_d, size, maxBlocks);
   printf("Using SYCL queue capture on single queue ... \n");
