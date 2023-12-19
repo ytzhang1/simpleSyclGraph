@@ -303,10 +303,6 @@ void syclGraphManual(float *inputVec_h, float *inputVec_d,
   
   sycl::queue qexec = sycl::queue{sycl::gpu_selector_v, 
       {sycl::ext::intel::property::queue::no_immediate_command_list()}};
-  if (!qexec.get_device().has(sycl::aspect::fp64)) {
-      printf("Device for execution queue doesn't support double precision. Exit. \n");
-      exit(0);
-  }
   for (int i = 0; i < GRAPH_LAUNCH_ITERATIONS; i++) {
     qexec.submit([&](sycl::handler& cgh) {
       cgh.ext_oneapi_graph(exec_graph);
@@ -372,10 +368,6 @@ void syclGraphCaptureQueue(float *inputVec_h, float *inputVec_d,
   
   sycl::queue qexec = sycl::queue{sycl::gpu_selector_v, 
       {sycl::ext::intel::property::queue::no_immediate_command_list()}};
-  if (!qexec.get_device().has(sycl::aspect::fp64)) {
-      printf("Device for execution queue doesn't support double precision. Exit. \n");
-      exit(0);
-  }
   for (int i = 0; i < GRAPH_LAUNCH_ITERATIONS; i++) {
     qexec.submit([&](sycl::handler& cgh) {
       cgh.ext_oneapi_graph(exec_graph);
