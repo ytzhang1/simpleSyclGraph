@@ -315,7 +315,7 @@ void syclGraphManual(float *inputVec_h, float *inputVec_d,
   }
   if(!qexec.get_device().has(sycl::aspect::fp64)){
      printf("Double precision isn't supported : %s \nExit\n",
-        q.get_device().get_info<sycl::info::device::name>().c_str());
+        qexec.get_device().get_info<sycl::info::device::name>().c_str());
       exit(0);
   }
   for (int i = 0; i < GRAPH_LAUNCH_ITERATIONS; i++) {
@@ -396,7 +396,7 @@ void syclGraphCaptureQueue(float *inputVec_h, float *inputVec_d,
   }
   if(!qexec.get_device().has(sycl::aspect::fp64)){
       printf("Double precision isn't supported : %s \nExit\n",
-        q.get_device().get_info<sycl::info::device::name>().c_str());
+        qexec.get_device().get_info<sycl::info::device::name>().c_str());
       exit(0);
   }
   for (int i = 0; i < GRAPH_LAUNCH_ITERATIONS; i++) {
