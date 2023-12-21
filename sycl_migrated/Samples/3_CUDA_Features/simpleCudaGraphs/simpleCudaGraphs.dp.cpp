@@ -257,6 +257,12 @@ void syclGraphManual(float *inputVec_h, float *inputVec_d,
         q.get_device().get_info<sycl::info::device::name>().c_str());
       exit(0);
   }
+  if(q.get_device().get_info<sycl_ext::info::device::graph_support>()
+      == sycl_ext::info::graph_support_level::unsupported){
+      printf("sycl graph not supported : %s\nExit\n", 
+        q.get_device().get_info<sycl::info::device::name>().c_str());
+      exit(0);
+  }
   
   sycl_ext::command_graph graph(q.get_context(), q.get_device());  
   auto nodecpy = graph.add([&](sycl::handler& h){
@@ -307,17 +313,7 @@ void syclGraphManual(float *inputVec_h, float *inputVec_d,
   
   sycl::queue qexec = sycl::queue{sycl::gpu_selector_v, 
       {sycl::ext::intel::property::queue::no_immediate_command_list()}};
-  if(qexec.get_device().get_info<sycl_ext::info::device::graph_support>()
-      == sycl_ext::info::graph_support_level::unsupported){
-      printf("sycl graph not supported : %s\nExit\n", 
-        qexec.get_device().get_info<sycl::info::device::name>().c_str());
-      exit(0);
-  }
-  if(!qexec.get_device().has(sycl::aspect::fp64)){
-     printf("Double precision isn't supported : %s \nExit\n",
-        qexec.get_device().get_info<sycl::info::device::name>().c_str());
-      exit(0);
-  }
+      
   for (int i = 0; i < GRAPH_LAUNCH_ITERATIONS; i++) {
     qexec.submit([&](sycl::handler& cgh) {
       cgh.ext_oneapi_graph(exec_graph);
@@ -336,6 +332,12 @@ void syclGraphCaptureQueue(float *inputVec_h, float *inputVec_d,
   sycl::queue q = sycl::queue{sycl::gpu_selector_v}; //use default sycl queue, which is out of order
   if(!q.get_device().has(sycl::aspect::fp64)){
       printf("Double precision isn't supported : %s \nExit\n",
+        q.get_device().get_info<sycl::info::device::name>().c_str());
+      exit(0);
+  }
+  if(q.get_device().get_info<sycl_ext::info::device::graph_support>()
+      == sycl_ext::info::graph_support_level::unsupported){
+      printf("sycl graph not supported : %s\nExit\n", 
         q.get_device().get_info<sycl::info::device::name>().c_str());
       exit(0);
   }
@@ -388,17 +390,7 @@ void syclGraphCaptureQueue(float *inputVec_h, float *inputVec_d,
   
   sycl::queue qexec = sycl::queue{sycl::gpu_selector_v, 
       {sycl::ext::intel::property::queue::no_immediate_command_list()}};
-  if(qexec.get_device().get_info<sycl_ext::info::device::graph_support>()
-      == sycl_ext::info::graph_support_level::unsupported){
-      printf("sycl graph not supported : %s\nExit\n", 
-        qexec.get_device().get_info<sycl::info::device::name>().c_str());
-      exit(0);
-  }
-  if(!qexec.get_device().has(sycl::aspect::fp64)){
-      printf("Double precision isn't supported : %s \nExit\n",
-        qexec.get_device().get_info<sycl::info::device::name>().c_str());
-      exit(0);
-  }
+
   for (int i = 0; i < GRAPH_LAUNCH_ITERATIONS; i++) {
     qexec.submit([&](sycl::handler& cgh) {
       cgh.ext_oneapi_graph(exec_graph);
